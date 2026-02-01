@@ -113,25 +113,25 @@ where
     ///
     /// See [`VolumeManager::open_dir`] for details, except the directory
     /// given is this directory.
-    pub fn open_dir<N>(
+    pub async fn open_dir<N>(
         &self,
         name: N,
     ) -> Result<Directory<'_, D, T, MAX_DIRS, MAX_FILES, MAX_VOLUMES>, Error<D::Error>>
     where
         N: ToShortFileName,
     {
-        let d = self.volume_mgr.open_dir(self.raw_directory, name)?;
+        let d = self.volume_mgr.open_dir(self.raw_directory, name).await?;
         Ok(d.to_directory(self.volume_mgr))
     }
 
     /// Change to a directory, mutating this object.
     ///
     /// You can then read the directory entries with `iterate_dir` and `open_file_in_dir`.
-    pub fn change_dir<N>(&mut self, name: N) -> Result<(), Error<D::Error>>
+    pub async fn change_dir<N>(&mut self, name: N) -> Result<(), Error<D::Error>>
     where
         N: ToShortFileName,
     {
-        let d = self.volume_mgr.open_dir(self.raw_directory, name)?;
+        let d = self.volume_mgr.open_dir(self.raw_directory, name).await?;
         self.volume_mgr.close_dir(self.raw_directory).unwrap();
         self.raw_directory = d;
         Ok(())
@@ -141,12 +141,13 @@ where
     ///
     /// See [`VolumeManager::find_directory_entry`] for details, except the
     /// directory given is this directory.
-    pub fn find_directory_entry<N>(&self, name: N) -> Result<DirEntry, Error<D::Error>>
+    pub async fn find_directory_entry<N>(&self, name: N) -> Result<DirEntry, Error<D::Error>>
     where
         N: ToShortFileName,
     {
         self.volume_mgr
             .find_directory_entry(self.raw_directory, name)
+            .await
     }
 
     /// Call a callback function for each directory entry in a directory.
@@ -155,11 +156,11 @@ where
     ///
     /// See [`VolumeManager::iterate_dir`] for details, except the directory
     /// given is this directory.
-    pub fn iterate_dir<F>(&self, func: F) -> Result<(), Error<D::Error>>
+    pub async fn iterate_dir<F>(&self, func: F) -> Result<(), Error<D::Error>>
     where
         F: FnMut(&DirEntry) -> Continue,
     {
-        self.volume_mgr.iterate_dir(self.raw_directory, func)
+        self.volume_mgr.iterate_dir(self.raw_directory, func).await
     }
 
     /// Call a callback function for each directory entry in a directory, and
@@ -167,7 +168,7 @@ where
     ///
     /// See [`VolumeManager::iterate_dir_lfn`] for details, except the
     /// directory given is this directory.
-    pub fn iterate_dir_lfn<F>(
+    pub async fn iterate_dir_lfn<F>(
         &self,
         lfn_buffer: &mut LfnBuffer<'_>,
         func: F,
@@ -177,13 +178,14 @@ where
     {
         self.volume_mgr
             .iterate_dir_lfn(self.raw_directory, lfn_buffer, func)
+            .await
     }
 
     /// Open a file.
     ///
     /// See [`VolumeManager::open_file_in_dir`] for details, except the
     /// directory given is this directory.
-    pub fn open_file_in_dir<N>(
+    pub async fn open_file_in_dir<N>(
         &self,
         name: N,
         mode: crate::Mode,
@@ -193,7 +195,8 @@ where
     {
         let f = self
             .volume_mgr
-            .open_file_in_dir(self.raw_directory, name, mode)?;
+            .open_file_in_dir(self.raw_directory, name, mode)
+            .await?;
         Ok(f.to_file(self.volume_mgr))
     }
 
@@ -201,7 +204,7 @@ where
     ///
     /// See [`VolumeManager::open_long_name_file_in_dir`] for details, except the
     /// directory given is this directory.
-    pub fn open_long_name_file_in_dir(
+    pub async fn open_long_name_file_in_dir(
         &self,
         name: &str,
         mode: crate::Mode,
@@ -209,7 +212,8 @@ where
     {
         let f = self
             .volume_mgr
-            .open_long_name_file_in_dir(self.raw_directory, name, mode)?;
+            .open_long_name_file_in_dir(self.raw_directory, name, mode)
+            .await?;
         Ok(f.to_file(self.volume_mgr))
     }
 
@@ -217,23 +221,26 @@ where
     ///
     /// See [`VolumeManager::delete_entry_in_dir`] for details, except the
     /// directory given is this directory.
-    pub fn delete_entry_in_dir<N>(&self, name: N) -> Result<(), Error<D::Error>>
+    pub async fn delete_entry_in_dir<N>(&self, name: N) -> Result<(), Error<D::Error>>
     where
         N: ToShortFileName,
     {
         self.volume_mgr
             .delete_entry_in_dir(self.raw_directory, name)
+            .await
     }
 
     /// Create a new empty directory.
     ///
     /// See [`VolumeManager::make_dir_in_dir`] for details, except the
     /// directory given is this directory.
-    pub fn make_dir_in_dir<N>(&self, name: N) -> Result<(), Error<D::Error>>
+    pub async fn make_dir_in_dir<N>(&self, name: N) -> Result<(), Error<D::Error>>
     where
         N: ToShortFileName,
     {
-        self.volume_mgr.make_dir_in_dir(self.raw_directory, name)
+        self.volume_mgr
+            .make_dir_in_dir(self.raw_directory, name)
+            .await
     }
 
     /// Convert back to a raw directory

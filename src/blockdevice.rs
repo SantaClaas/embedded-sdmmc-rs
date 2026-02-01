@@ -77,13 +77,21 @@ impl Default for Block {
 /// sectors). Only supports devices which are <= 2 TiB in size.
 pub trait BlockDevice {
     /// The errors that the `BlockDevice` can return. Must be debug formattable.
-    type Error: core::fmt::Debug;
+    type Error: core::fmt::Debug + core::fmt::Display;
     /// Read one or more blocks, starting at the given block index.
-    fn read(&self, blocks: &mut [Block], start_block_idx: BlockIdx) -> Result<(), Self::Error>;
+    fn read(
+        &self,
+        blocks: &mut [Block],
+        start_block_idx: BlockIdx,
+    ) -> impl Future<Output = Result<(), Self::Error>>;
     /// Write one or more blocks, starting at the given block index.
-    fn write(&self, blocks: &[Block], start_block_idx: BlockIdx) -> Result<(), Self::Error>;
+    fn write(
+        &self,
+        blocks: &[Block],
+        start_block_idx: BlockIdx,
+    ) -> impl Future<Output = Result<(), Self::Error>>;
     /// Determine how many blocks this device can hold.
-    fn num_blocks(&self) -> Result<BlockCount, Self::Error>;
+    fn num_blocks(&self) -> impl Future<Output = Result<BlockCount, Self::Error>>;
 }
 
 /// A caching layer for block devices
@@ -110,42 +118,46 @@ where
     }
 
     /// Read a block, and return a reference to it.
-    pub fn read(&mut self, block_idx: BlockIdx) -> Result<&Block, D::Error> {
+    pub async fn read(&mut self, block_idx: BlockIdx) -> Result<&Block, D::Error> {
         if self.block_idx != Some(block_idx) {
             self.block_idx = None;
-            self.block_device.read(&mut self.block, block_idx)?;
+            self.block_device.read(&mut self.block, block_idx).await?;
             self.block_idx = Some(block_idx);
         }
         Ok(&self.block[0])
     }
 
     /// Read a block, and return a reference to it.
-    pub fn read_mut(&mut self, block_idx: BlockIdx) -> Result<&mut Block, D::Error> {
+    pub async fn read_mut(&mut self, block_idx: BlockIdx) -> Result<&mut Block, D::Error> {
         if self.block_idx != Some(block_idx) {
             self.block_idx = None;
-            self.block_device.read(&mut self.block, block_idx)?;
+            self.block_device.read(&mut self.block, block_idx).await?;
             self.block_idx = Some(block_idx);
         }
         Ok(&mut self.block[0])
     }
 
     /// Write back a block you read with [`Self::read_mut`] and then modified.
-    pub fn write_back(&mut self) -> Result<(), D::Error> {
-        self.block_device.write(
-            &self.block,
-            self.block_idx.expect("write_back with no read"),
-        )
+    pub async fn write_back(&mut self) -> Result<(), D::Error> {
+        self.block_device
+            .write(
+                &self.block,
+                self.block_idx.expect("write_back with no read"),
+            )
+            .await
     }
 
     /// Write back a block you read with [`Self::read_mut`] and then modified, but to two locations.
     ///
     /// This is useful for updating two File Allocation Tables.
-    pub fn write_back_with_duplicate(&mut self, duplicate: BlockIdx) -> Result<(), D::Error> {
-        self.block_device.write(
-            &self.block,
-            self.block_idx.expect("write_back with no read"),
-        )?;
-        self.block_device.write(&self.block, duplicate)?;
+    pub async fn write_back_with_duplicate(&mut self, duplicate: BlockIdx) -> Result<(), D::Error> {
+        self.block_device
+            .write(
+                &self.block,
+                self.block_idx.expect("write_back with no read"),
+            )
+            .await?;
+        self.block_device.write(&self.block, duplicate).await?;
         Ok(())
     }
 
